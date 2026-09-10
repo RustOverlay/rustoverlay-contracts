@@ -64,6 +64,43 @@ message Vitals {
   string active_weapon = 5;
   int32 meds = 6;
   double confidence = 7; // template-match confidence, 0-1; low means treat as stale
+  double hydration = 8;
+  double calories = 9;
+}
+
+// One occupied inventory slot. Empty and unreadable slots are omitted entirely, so `index` is
+// positional information and not a list offset.
+message Slot {
+  uint32 index = 1;
+
+  // Candidate item ids. Exactly one when the match is confident; several when the matcher could not
+  // separate look-alikes, which is common for ammo variants. Collapsing that to a single id would
+  // present a coin flip as fact, and a wrong item shown to a teammate is worse than a blank slot.
+  repeated int32 item_id = 2;
+
+  int32 count = 3;
+  bool is_stack = 4; // false means a magazine count
+}
+
+// Timestamped per container, not per loadout: the belt is legible in normal play, but the main
+// grid, wear row and backpack can only be read while the inventory panel is open and go stale the
+// moment it shuts. A consumer must present them against read_at_ms rather than as current.
+message Container {
+  int64 read_at_ms = 1;
+  repeated Slot slots = 2;
+}
+
+// Read from the screen, like Vitals. Sent whole rather than as deltas: the relay drops frames under
+// queue pressure by design, so an incremental stream would desynchronise permanently.
+message Loadout {
+  int64 sampled_at_ms = 1;
+  Container belt = 2;
+  Container main = 3;
+  Container wear = 4;
+  Container backpack = 5;
+
+  // Belt index 0-5. Absent when nothing is held, or when the belt is too uniformly blue to tell.
+  optional uint32 held_slot = 6;
 }
 
 message Member {
@@ -78,6 +115,8 @@ message Member {
   // True when the agent read the name while steam.use_steam_nicknames was set, in which case the
   // name is a local alias and will not resolve against a Steam profile.
   bool name_is_local_alias = 6;
+
+  Loadout loadout = 7;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +145,7 @@ message ClientFrame {
     CombatEvent combat = 4;
     Vitals vitals = 5;
     Heartbeat heartbeat = 6;
+    Loadout loadout = 7;
   }
 }
 
@@ -137,6 +177,7 @@ message MemberUpdate {
   Transform transform = 2;
   Vitals vitals = 3;
   bool online = 4;
+  Loadout loadout = 5;
 }
 
 message Error {
