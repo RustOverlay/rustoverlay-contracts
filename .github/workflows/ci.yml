@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, fetch-tags: true}
+      - uses: bufbuild/buf-setup-action@v1
+        with: {github_token: "${{ secrets.GITHUB_TOKEN }}"}
+
+      - run: buf lint
+
+      # Compared against the last released tag, not the previous commit: what matters is whether
+      # this breaks an agent already in the wild, and only tagged versions ever reach one. Also
+      # means the check no-ops cleanly before the first release rather than needing a bootstrap
+      # exception.
+      - name: Breaking-change check against the last release
+        run: |
+          last=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$last" ]; then
+            echo "No release tag yet -- nothing to break."
+            exit 0
+          fi
+          echo "Comparing against $last"
+          buf breaking --against ".git#tag=$last"
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: {dotnet-version: "9.0.x"}
+
+      # Proves the schema still compiles to C#. A .proto can be valid to buf and still fail protoc's
+      # C# backend -- reserved words and namespace collisions surface only here.
+      - run: dotnet build csharp/RustOverlay.Contracts -c Release
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [schema, package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: {dotnet-version: "9.0.x"}
+
+      # refs/tags/v1.2.3 -> 1.2.3. The tag is the only source of the version; nothing in the tree
+      # records it, so a release cannot disagree with what it is called.
+      - id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - run: dotnet pack csharp/RustOverlay.Contracts -c Release
+               -p:Version=${{ steps.ver.outputs.version }} -o dist
+
+      - name: Push to NuGet
+        run: |
+          dotnet nuget push "dist/*.nupkg" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

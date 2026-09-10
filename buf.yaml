@@ -1,0 +1,12 @@
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  # FILE, not WIRE: both consumers generate code from this schema, so renaming a message breaks
+  # their build even where the bytes on the wire would still parse. The README's "never renumber,
+  # never reuse" rule is enforced here rather than by review.
+  use:
+    - FILE

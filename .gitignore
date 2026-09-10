@@ -1,2 +1,6 @@
-# Nothing is generated in this repo -- consumers generate into their own trees. See README.
+# The generated bindings are not committed -- consumers generate into their own trees, and the
+# NuGet package is built by CI. See README.
 .DS_Store
+bin/
+obj/
+dist/

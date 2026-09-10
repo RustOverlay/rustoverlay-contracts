@@ -3,7 +3,7 @@
 The wire schema between the RustOverlay agent and the relay. This is the canonical definition —
 both sides generate from it, neither hand-maintains a copy.
 
-Published so anyone running the [agent](https://github.com/<org>/rustoverlay) can see exactly what
+Published so anyone running the [agent](https://github.com/RustOverlay/rustoverlay-agent) can see exactly what
 leaves their machine.
 
 ```
@@ -25,12 +25,27 @@ talking to a much newer relay a year from now, so:
 
 ## Generated packages
 
-| Target | Package |
-|---|---|
-| C# (agent) | NuGet `RustOverlay.Contracts` |
-| Python (relay) | PyPI `rustoverlay-contracts` |
+| Target | Package | Status |
+|---|---|---|
+| C# (agent) | NuGet `RustOverlay.Contracts` | published by CI on tag |
+| Python (relay) | PyPI `rustoverlay-contracts` | **not built yet** — the backend commits `_gen/` and pins `contracts.lock` to a sha256 of this tree |
 
-Both are built and published by CI on tag. Do not generate by hand and commit the output.
+Do not generate by hand and commit the output.
+
+## Releasing
+
+The tag is the only place the version is recorded, so a release cannot disagree with its own name:
+
+```
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+That packs `csharp/RustOverlay.Contracts` at `1.0.0`, pushes it to nuget.org and opens a GitHub
+release with the `.nupkg` attached. Requires the `NUGET_API_KEY` repository secret.
+
+`buf breaking` runs against **the last released tag**, not the previous commit — what matters is
+whether a change breaks an agent already installed on someone's machine, and only tagged versions
+ever reach one.
 
 ## Licence
 
