@@ -1,6 +1,2 @@
-# The generated bindings are not committed -- consumers generate into their own trees, and the
-# NuGet package is built by CI. See README.
+# Nothing is generated in this repo -- consumers vendor the schema into their own trees. See README.
 .DS_Store
-bin/
-obj/
-dist/

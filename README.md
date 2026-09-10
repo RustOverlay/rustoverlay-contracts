@@ -23,29 +23,31 @@ talking to a much newer relay a year from now, so:
   downward, Y-up, north +Z). Converting is the consumer's job, so a change of convention downstream
   cannot silently reinterpret archived data.
 
-## Generated packages
+## How consumers take it
 
-| Target | Package | Status |
+There is no package registry in the loop. Each consumer vendors this tree and its own CI holds the
+copy byte-identical to `main`, so drift fails a build rather than surfacing as a wire bug:
+
+| Consumer | Vendors | Checked by |
 |---|---|---|
-| C# (agent) | NuGet `RustOverlay.Contracts` | published by CI on tag |
-| Python (relay) | PyPI `rustoverlay-contracts` | **not built yet** — the backend commits `_gen/` and pins `contracts.lock` to a sha256 of this tree |
+| [agent](https://github.com/RustOverlay/rustoverlay-agent) | `proto/` — protoc runs at build time via `Grpc.Tools` | `diff -ru` against this repo in agent CI |
+| backend | generated Python in `_gen/`, plus `contracts.lock`, a sha256 of this tree | `task proto && git diff --exit-code` in backend CI |
 
-Do not generate by hand and commit the output.
+The two differ because their vendored artifacts differ. The agent keeps the `.proto` itself, so a
+diff against this repo is the complete check. The backend keeps *generated output*, whose
+relationship to the schema is not visible by eye, so it locks a hash as well.
 
-## Releasing
+A registry was considered and dropped: a version number nobody was reading, in exchange for a
+publish step, an account and an API key. The compatibility rules above are enforced by
+`buf breaking` in CI, which is what actually stops a field being renumbered — a package version
+never did.
 
-The tag is the only place the version is recorded, so a release cannot disagree with its own name:
+Do not generate by hand and commit the output into this repo.
 
-```
-git tag v1.0.0 && git push origin v1.0.0
-```
+## Changing the schema
 
-That packs `csharp/RustOverlay.Contracts` at `1.0.0`, pushes it to nuget.org and opens a GitHub
-release with the `.nupkg` attached. Requires the `NUGET_API_KEY` repository secret.
-
-`buf breaking` runs against **the last released tag**, not the previous commit — what matters is
-whether a change breaks an agent already installed on someone's machine, and only tagged versions
-ever reach one.
+An edit here is not live until both consumers have re-vendored it. `buf breaking` runs against the
+previous commit on `main`, so the rules above are enforced on the way in.
 
 ## Licence
 
