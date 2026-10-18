@@ -30,7 +30,7 @@ copy byte-identical to `main`, so drift fails a build rather than surfacing as a
 
 | Consumer | Vendors | Checked by |
 |---|---|---|
-| [agent](https://github.com/RustOverlay/rustoverlay-agent) | `proto/` — protoc runs at build time via `Grpc.Tools` | `diff -ru` against this repo in agent CI |
+| [agent](https://github.com/RustOverlay/rustoverlay-agent) | `proto/` — compiled at build time by `protox` and `prost-build`, no protoc needed | `diff -ru` against this repo in agent CI |
 | backend | generated Python in `_gen/`, plus `contracts.lock`, a sha256 of this tree | `task proto && git diff --exit-code` in backend CI |
 
 The two differ because their vendored artifacts differ. The agent keeps the `.proto` itself, so a
@@ -52,5 +52,5 @@ previous commit on `main`, so the rules above are enforced on the way in.
 ## Licence
 
 Apache-2.0. Deliberately permissive rather than matching the agent's GPL-3.0: the relay is a
-separate, closed codebase that imports the generated Python package, and a copyleft schema would
+separate, closed codebase that commits code generated from this schema, and a copyleft schema would
 pull it in. Copyleft belongs on the application, not the schema.
